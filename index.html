@@ -79,9 +79,9 @@ function init(){
   $('#modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
 }
 function renderCats(){
-  $('#cats').innerHTML=chip('all','الكل',cat==='all','c')+D.categories.map(c=>chip(c.key,(c.emoji||'')+' '+c.name,cat===c.key,'c')).join('');
+  $('#cats').innerHTML=chip('all','الكل',cat==='all','c')+D.categories.filter(c=>D.products.some(p=>p.category===c.key)).map(c=>chip(c.key,(c.emoji||'')+' '+c.name,cat===c.key,'c')).join('');
   const c=D.categories.find(x=>x.key===cat);
-  $('#subs').innerHTML=c&&c.subs?chip('all','كل الأقسام الفرعية',sub==='all','s')+c.subs.map(s=>chip(s.key,s.name,sub===s.key,'s')).join(''):'';
+  $('#subs').innerHTML=c&&c.subs?chip('all','كل الأقسام الفرعية',sub==='all','s')+c.subs.filter(s=>D.products.some(p=>p.category===c.key&&p.sub===s.key)).map(s=>chip(s.key,s.name,sub===s.key,'s')).join(''):'';
   document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{
     if(b.dataset.t==='c'){cat=b.dataset.k;sub='all'}else sub=b.dataset.k;
     renderCats();renderList();
@@ -92,7 +92,7 @@ function entries(p){return Object.entries(p.prices||{}).filter(([s,e])=>e&&e.pri
 function best(p){const a=entries(p).filter(e=>e.in_stock!==false);return a.length?a.reduce((x,y)=>y.price<x.price?y:x):null}
 function catEmoji(p){const c=D.categories.find(x=>x.key===p.category);return c?.emoji||'🛒'}
 function renderList(){
-  const L=D.products.filter(p=>(cat==='all'||p.category===cat)&&(sub==='all'||p.sub===sub)&&(!q||norm(p.name+' '+(p.brand||'')).includes(q)));
+  const L=D.products.filter(p=>(cat==='all'||p.category===cat)&&(sub==='all'||p.sub===sub)&&(!q||norm(p.name+' '+(p.unit||'')+' '+(p.brand||'')).includes(q)));
   if(!L.length){$('#list').innerHTML='<div class="empty">'+(D.products.length?'مفيش منتجات مطابقة':'لسه مفيش منتجات. الأسعار هتظهر هنا أول ما تتحدّث.')+'</div>';return}
   $('#list').innerHTML='<p class="small">'+L.length.toLocaleString('ar-EG')+' منتج</p><div class="grid">'+L.map(p=>{
     const b=best(p),n=entries(p).length;
@@ -113,10 +113,11 @@ function analyze(e){
   return null;
 }
 const sname=id=>D.stores.find(s=>s.id===id)?.name||id;
+const snote=id=>D.stores.find(s=>s.id===id)?.note||'';
 function openProduct(id){
   const p=D.products.find(x=>x.id===id),E=entries(p).sort((a,b)=>(b.in_stock!==false)-(a.in_stock!==false)||a.price-b.price),b=best(p);
   $('#sheet').innerHTML=`<h2>${esc(p.name)}</h2><div class="small">${esc(p.unit||'')}</div>
-  <div style="margin:10px 0">${E.map(e=>{const a=analyze(e),oos=e.in_stock===false;return `<div class="row"><div><span class="${oos?'out':''}">${esc(sname(e.store))}</span>${b&&e.store===b.store?'<span class="tag ok">الأرخص</span>':''}${oos?'<span class="tag n">غير متوفر</span>':''}${e.offer?'<span class="tag w">عرض</span>':''}${a?`<div class="small"><span class="tag ${a.k}">${esc(a.t)}</span></div>`:''}</div><div class="${b&&e.store===b.store?'best':''} ${oos?'out':''}">${money(e.price)}</div></div>`}).join('')||'<div class="empty">مفيش أسعار</div>'}</div>
+  <div style="margin:10px 0">${E.map(e=>{const a=analyze(e),oos=e.in_stock===false;return `<div class="row"><div><span class="${oos?'out':''}">${esc(sname(e.store))}</span>${b&&e.store===b.store?'<span class="tag ok">الأرخص</span>':''}${oos?'<span class="tag n">غير متوفر</span>':''}${e.offer?'<span class="tag w">عرض</span>':''}${snote(e.store)?`<div class="small">${esc(snote(e.store))}</div>`:''}${e.old_price?`<div class="small">المحل بيقول إن السعر قبل العرض ${money(e.old_price)}${e.discount_pct?' (خصم '+e.discount_pct.toLocaleString('ar-EG')+'%)':''}</div>`:(e.discount_pct?`<div class="small">المحل بيقول خصم ${e.discount_pct.toLocaleString('ar-EG')}%</div>`:'')}${a?`<div class="small"><span class="tag ${a.k}">${esc(a.t)}</span></div>`:''}</div><div class="${b&&e.store===b.store?'best':''} ${oos?'out':''}">${money(e.price)}</div></div>`}).join('')||'<div class="empty">مفيش أسعار</div>'}</div>
   ${chart(E)}
   <div style="display:flex;gap:8px;margin-top:14px"><button class="btn p" id="add">أضف للسلة</button><button class="btn" id="close">إغلاق</button></div>`;
   $('#add').onclick=()=>{basket[id]=(basket[id]||0)+1;saveBasket();updateBasketBtn();closeModal()};
